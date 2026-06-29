@@ -11,6 +11,10 @@ from typing import List, Optional
 import sys
 import json
 
+sys.path.insert(0, r"C:\Users\danya\OneDrive\Desktop\PROJECTS\codemind-ai")
+
+from services.ai_service.chains.rag_chain import rag_chat, rag_chat_full
+
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
@@ -46,9 +50,6 @@ async def chat_stream(
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
 
-    sys.path.insert(0, "/app")
-    from services.ai_service.chains.rag_chain import rag_chat
-
     history = [{"role": m.role, "content": m.content} for m in payload.history]
 
     async def generate():
@@ -76,10 +77,7 @@ async def chat(
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
 
-    sys.path.insert(0, "/app")
-    from services.ai_service.chains.rag_chain import rag_chat_full
-
     history = [{"role": m.role, "content": m.content} for m in payload.history]
 
-    result = await rag_chat_full(repo_id, payload.question, history)
-    return ChatResponse(**result)
+    response = await rag_chat_full(repo_id, payload.question, history)
+    return ChatResponse(**response)
