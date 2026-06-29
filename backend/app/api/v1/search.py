@@ -10,6 +10,11 @@ from typing import List
 import sys
 import os
 
+sys.path.insert(0, r"C:\Users\danya\OneDrive\Desktop\PROJECTS\codemind-ai")
+
+from services.ai_service.embeddings.embedder import embed_single
+from services.ai_service.embeddings.retriever import search_similar
+
 router = APIRouter(prefix="/search", tags=["search"])
 
 
@@ -47,10 +52,6 @@ async def search_repo(
         raise HTTPException(status_code=404, detail="Repository not found")
 
     try:
-        sys.path.insert(0, "/app")
-        from services.ai_service.embeddings.embedder import embed_single
-        from services.ai_service.embeddings.retriever import search_similar
-
         query_embedding = embed_single(q)
         results = search_similar(repo_id, query_embedding, top_k)
 
