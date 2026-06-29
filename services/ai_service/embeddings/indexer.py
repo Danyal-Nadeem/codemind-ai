@@ -6,13 +6,17 @@ from qdrant_client.models import (
 import uuid
 import os
 
-QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 COLLECTION_NAME = "codemind_vectors"
-VECTOR_SIZE = 1536
+VECTOR_SIZE = 384  # all-MiniLM-L6-v2
 
+# In-memory Qdrant client (no Docker needed)
+_client = None
 
 def get_client() -> QdrantClient:
-    return QdrantClient(url=QDRANT_URL)
+    global _client
+    if _client is None:
+        _client = QdrantClient(":memory:")
+    return _client
 
 
 def create_collection(repo_id: str):

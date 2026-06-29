@@ -1,11 +1,12 @@
 ﻿from typing import List, Dict, AsyncGenerator
-from openai import AsyncOpenAI
 import os
+import sys
+
+sys.path.insert(0, r"C:\Users\danya\OneDrive\Desktop\PROJECTS\codemind-ai")
+
 from services.ai_service.embeddings.embedder import embed_single
 from services.ai_service.embeddings.retriever import search_similar
 from services.ai_service.prompts.chat_prompt import CHAT_SYSTEM_PROMPT, CHAT_USER_TEMPLATE
-
-client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 def format_context(chunks: List[Dict]) -> str:
@@ -26,29 +27,10 @@ async def rag_chat(
     chunks = search_similar(repo_id, query_embedding, top_k)
     context = format_context(chunks)
 
-    user_message = CHAT_USER_TEMPLATE.format(
-        context=context,
-        question=question,
-    )
+    answer = f"Based on the codebase:\n\n{context}"
 
-    messages = [
-        {"role": "system", "content": CHAT_SYSTEM_PROMPT},
-        *chat_history,
-        {"role": "user", "content": user_message},
-    ]
-
-    stream = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages,
-        stream=True,
-        temperature=0.1,
-        max_tokens=1500,
-    )
-
-    async for chunk in stream:
-        delta = chunk.choices[0].delta
-        if delta.content:
-            yield delta.content
+    for word in answer.split(" "):
+        yield word + " "
 
 
 async def rag_chat_full(
@@ -61,25 +43,7 @@ async def rag_chat_full(
     chunks = search_similar(repo_id, query_embedding, top_k)
     context = format_context(chunks)
 
-    user_message = CHAT_USER_TEMPLATE.format(
-        context=context,
-        question=question,
-    )
-
-    messages = [
-        {"role": "system", "content": CHAT_SYSTEM_PROMPT},
-        *chat_history,
-        {"role": "user", "content": user_message},
-    ]
-
-    response = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages,
-        temperature=0.1,
-        max_tokens=1500,
-    )
-
-    answer = response.choices[0].message.content
+    answer = f"Based on the codebase, here are the relevant sections:\n\n{context}"
 
     return {
         "answer": answer,

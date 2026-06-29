@@ -1,13 +1,11 @@
-﻿from typing import List, Dict
+from typing import List, Dict
 from qdrant_client import QdrantClient
+from qdrant_client.models import Filter
 import os
 
-QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 COLLECTION_NAME = "codemind_vectors"
 
-
-def get_client() -> QdrantClient:
-    return QdrantClient(url=QDRANT_URL)
+from services.ai_service.embeddings.indexer import get_client
 
 
 def search_similar(
@@ -18,12 +16,15 @@ def search_similar(
     client = get_client()
     collection_name = f"{COLLECTION_NAME}_{repo_id}"
 
-    results = client.search(
-        collection_name=collection_name,
-        query_vector=query_embedding,
-        limit=top_k,
-        with_payload=True,
-    )
+    try:
+        results = client.query_points(
+            collection_name=collection_name,
+            query=query_embedding,
+            limit=top_k,
+            with_payload=True,
+        ).points
+    except Exception:
+        return []
 
     return [
         {
