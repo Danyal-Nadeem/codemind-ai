@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
@@ -6,8 +6,19 @@ from app.api.v1.deps import get_current_user
 from app.models.user import User
 from app.models.repository import Repository, RepoStatus
 from pydantic import BaseModel
-import httpx
+import sys
 import os
+
+# Services path add karo
+sys.path.insert(0, r"C:\Users\danya\OneDrive\Desktop\PROJECTS\codemind-ai")
+
+from services.github_service.cloner import clone_repo
+from services.github_service.file_walker import walk_repo
+from services.github_service.tech_detector import detect_tech_stack
+from services.github_service.parsers import parse_file
+from services.ai_service.embeddings.chunker import chunk_parsed_code
+from services.ai_service.embeddings.embedder import embed_texts
+from services.ai_service.embeddings.indexer import index_chunks
 
 router = APIRouter(prefix="/analyze", tags=["analyze"])
 
@@ -40,13 +51,6 @@ async def analyze_repo(
     await db.commit()
 
     try:
-        from services.github_service.cloner import clone_repo
-        from services.github_service.file_walker import walk_repo
-        from services.github_service.tech_detector import detect_tech_stack
-        from services.github_service.parsers import parse_file
-        import sys
-        sys.path.insert(0, "/app")
-
         clone_path = clone_repo(repo.github_url, repo_id)
         files = walk_repo(clone_path)
         tech_stack = detect_tech_stack(clone_path)
@@ -60,6 +64,12 @@ async def analyze_repo(
             )
             all_chunks.extend(chunks)
 
+        # Chunker -> embedder -> indexer
+        chunks = chunk_parsed_code(all_chunks)
+        texts = [c["text"] for c in chunks]
+        embeddings = embed_texts(texts)
+        indexed_count = index_chunks(repo_id, chunks, embeddings)
+
         repo.status = RepoStatus.ready
         await db.commit()
 
@@ -67,7 +77,7 @@ async def analyze_repo(
             repo_id=repo_id,
             status="ready",
             files_count=len(files),
-            chunks_count=len(all_chunks),
+            chunks_count=indexed_count,
             tech_stack=tech_stack,
         )
 
