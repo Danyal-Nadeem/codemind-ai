@@ -1,0 +1,20 @@
+rules:
+  - id: hardcoded-api-key
+    patterns:
+      - pattern-either:
+          - pattern: $KEY = "$VAL"
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: (?i)(api_key|secret|password|token|jwt_secret|private_key)
+    message: "Potential hardcoded credential or api key found. Keeping secrets in source code can lead to security breaches."
+    languages: [python, javascript, typescript]
+    severity: WARNING
+
+  - id: use-of-eval
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: exec(...)
+    message: "Avoid using eval() or exec() as it can execute arbitrary strings as code, leading to Remote Code Execution (RCE) vulnerabilities."
+    languages: [python, javascript, typescript]
+    severity: ERROR
