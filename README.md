@@ -18,8 +18,7 @@
 3. [Deep Dive: Ingestion & Query Pipelines](#-deep-dive-ingestion--query-pipelines)
 4. [Feature Breakdown](#-feature-breakdown)
 5. [Repository Structure](#-repository-structure)
-6. [Roadmap & Weekly Checkpoint Status](#-roadmap--weekly-checkpoint-status)
-7. [Local Setup & Running Guide](#-local-setup--running-guide)
+6. [Local Setup & Running Guide](#-local-setup--running-guide)
 
 ---
 
