@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import engine, Base
-from app.api.v1 import auth, repos, analyze, search, chat
+from app.api.v1 import auth, repos, analyze, search, chat, architecture
 
 
 @asynccontextmanager
@@ -33,6 +33,7 @@ app.include_router(repos.router, prefix="/api/v1")
 app.include_router(analyze.router, prefix="/api/v1")
 app.include_router(search.router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1")
+app.include_router(architecture.router, prefix="/api/v1")
 
 
 @app.get("/health")
