@@ -102,20 +102,32 @@ When a repository link is inputted into CodeMind AI, the background worker trigg
       │
       └──► [AST Builder] ──► [Function Calls / Class Inheritance Extraction] ──► [Neo4j DB] (Structural)
 ```
-- **Semantic Path:** File parser divides source files into smart overlapping chunks (capped at 400 tokens) and generates embeddings locally using `all-MiniLM-L6-v2` before indexing into Qdrant.
-- **Structural Path:** AST parsers parse the abstract syntax tree of Python and JS/TS files to identify class structures, function definitions, and edges showing who calls whom. These nodes and edges are indexed dynamically into Neo4j.
+*   **Semantic Path:** The parser splits codebase files into overlapping chunks of up to 400 tokens, then embeds them locally using `all-MiniLM-L6-v2` into 384-dimensional vectors stored inside Qdrant.
+*   **Structural Path:** The AST module (`builder.py`) traverses python abstract syntax trees (`ast` module) and javascript/typescript source code (via custom bracket-depth regex). It identifies:
+    *   **Nodes:** Classes, functions, and class methods.
+    *   **Edges:** Caller-callee function call boundaries (`calls` relationships) and base inheritance configurations (`inherits` relationships).
 
-### 2. Query Pipeline (GraphRAG)
-To provide deep code understanding, the chat interface does not rely on vector matching alone. It executes a hybrid GraphRAG lookup:
+### 2. Neo4j Graph Database & In-Memory Fallbacks
+To map code dependencies without throwing execution errors on systems lacking active graph configurations, CodeMind AI runs a multi-tier database storage strategy:
+1.  **Neo4j Database (Primary Storage):** Executes Cypher queries over Bolt protocols to persist code nodes and directional relationship edges.
+2.  **NetworkX In-Memory (Secondary Fallback):** Automatically registers a local directed graph (`nx.DiGraph()`) using python's NetworkX library if Neo4j parameters are missing or unreachable.
+3.  **Raw Dictionary Fallback (Tertiary Fallback):** Maps lists of nodes and edges directly in memory as pure Python lists if third-party libraries are not installed, ensuring the application remains robust.
+
+### 3. Query Pipeline (GraphRAG)
+Standard RAG pipelines query vector spaces for semantic similarity but fail to trace topological call stacks (e.g., *"Which functions call write_to_file?"*). CodeMind AI implements **Hybrid GraphRAG**:
 ```
-                        ┌──► Vector Store (Qdrant) ──► Semantic Context
+                        ┌──► Vector Store (Qdrant) ──► Semantic Matches
 [User Question] ──► Hybrid Retriever
-                        └──► Graph Database (Neo4j) ──► Structural Context (2 Hops Traversal)
+                        └──► Graph Database (Neo4j) ──► AST Traversal (2-Hops BFS)
                                                                  │
                                                                  ▼
                                                   Combined Context ──► LLM ──► Response
 ```
-If you ask: *"How is authentication validated?"*, the system performs a semantic search on Qdrant, extracts identifiers like `validate_token`, looks up `validate_token` in the Neo4j graph, fetches all surrounding caller and callee nodes (up to 2 hops), and feeds this composite structure to the LLM.
+When a question is queried:
+1.  **Identifiers Extract:** Naive text scanning parses the query to find potential class or function names (such as camelCase or snake_case tokens).
+2.  **Vector Retrieval:** Qdrant returns top semantic code blocks matching the vector embedding of the question.
+3.  **Graph Expansion:** The system queries Neo4j or the NetworkX fallback for the extracted class/function identifiers, executing a Breadth-First Search (BFS) up to **2 hops** deep to fetch related nodes (callers, callees, and parent classes).
+4.  **Composite Prompt Context:** Both semantic vectors and call graphs are compiled into standard instructions and sent to the LLM, giving it full structural awareness of repository layouts.
 
 ---
 
@@ -162,24 +174,7 @@ If you ask: *"How is authentication validated?"*, the system performs a semantic
 └── workers/                  # Celery tasks (ingest, embedding, graph extraction)
 ```
 
----
 
-## 📅 Roadmap & Weekly Checkpoint Status
-
-| Checkpoint | Goals | Status |
-|---|---|---|
-| **Week 1** | Foundation + JWT Authentication & Repo CRUD API | ✅ 100% Complete |
-| **Week 2** | GitHub Ingestion Pipeline & AST Parser setup | ✅ 100% Complete |
-| **Week 3** | Embedding Engine & Qdrant In-Memory Vector Store | ✅ 100% Complete |
-| **Week 4** | RAG Chat with Citation Generation & SSE Streaming | ✅ 100% Complete |
-| **Week 5** | Security & Quality Scanner (Semgrep, Bandit, Code Smells) | ✅ 100% Complete |
-| **Week 6** | Architecture Diagram & README Generator | ✅ 100% Complete |
-| **Week 7** | GraphRAG with Neo4j AST Maps & networkx fallbacks | ✅ 100% Complete |
-| **Week 8** | Webhook PR Reviewers & Automated suggestion reviews | ⬜ Inactive |
-| **Week 9** | Skeletal loaders & UI Glassmorphism polish | ⬜ Inactive |
-| **Week 10**| Production Deployments (Railway + Vercel) | ⬜ Inactive |
-
----
 
 ## 🔧 Local Setup & Running Guide
 
