@@ -6,6 +6,7 @@ import api from "@/lib/api";
 import ScoreCard from "@/components/ScoreCard";
 import SecurityPanel from "@/components/SecurityPanel";
 import MermaidViewer from "@/components/MermaidViewer";
+import GraphViewer from "@/components/GraphViewer";
 
 interface Source {
   filepath: string;
@@ -25,7 +26,7 @@ export default function ChatPage() {
   const repoId = params.repoId as string;
   
   // Tab control
-  const [activeTab, setActiveTab] = useState<"chat" | "security" | "architecture">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "security" | "architecture" | "graph">("chat");
 
   // Chat State
   const [messages, setMessages] = useState<Message[]>([]);
@@ -43,6 +44,11 @@ export default function ChatPage() {
   const [archResults, setArchResults] = useState<any>(null);
   const [archError, setArchError] = useState<string | null>(null);
 
+  // Graph State
+  const [graphLoading, setGraphLoading] = useState(false);
+  const [graphResults, setGraphResults] = useState<any>(null);
+  const [graphError, setGraphError] = useState<string | null>(null);
+
   useEffect(() => {
     if (activeTab === "chat") {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -52,6 +58,9 @@ export default function ChatPage() {
   useEffect(() => {
     if (activeTab === "architecture" && !archResults && !archLoading) {
       fetchArchitecture();
+    }
+    if (activeTab === "graph" && !graphResults && !graphLoading) {
+      fetchGraph();
     }
   }, [activeTab]);
 
@@ -104,6 +113,19 @@ export default function ChatPage() {
     }
   };
 
+  const fetchGraph = async () => {
+    setGraphLoading(true);
+    setGraphError(null);
+    try {
+      const { data } = await api.get(`/api/v1/repos/${repoId}/graph`);
+      setGraphResults(data);
+    } catch (err: any) {
+      setGraphError(err.response?.data?.detail || "Failed to build code graph.");
+    } finally {
+      setGraphLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-zinc-950">
       {/* Top Header */}
@@ -145,6 +167,16 @@ export default function ChatPage() {
           }`}
         >
           Architecture & README
+        </button>
+        <button
+          onClick={() => setActiveTab("graph")}
+          className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors focus:outline-none cursor-pointer ${
+            activeTab === "graph"
+              ? "border-purple-500 text-white"
+              : "border-transparent text-zinc-500 hover:text-zinc-300"
+          }`}
+        >
+          Code Graph
         </button>
       </div>
 
@@ -323,7 +355,7 @@ export default function ChatPage() {
               </div>
             )}
           </div>
-        ) : (
+        ) : activeTab === "architecture" ? (
           /* Architecture Section */
           <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
             {archLoading ? (
@@ -378,6 +410,52 @@ export default function ChatPage() {
                     <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans">{archResults.readme_content}</pre>
                   </div>
                 </div>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          /* Code Graph Section */
+          <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+            {graphLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                <div className="relative w-16 h-16">
+                  <span className="absolute inset-0 border-4 border-purple-500/20 rounded-full"></span>
+                  <span className="absolute inset-0 border-4 border-t-purple-500 rounded-full animate-spin"></span>
+                </div>
+                <p className="text-zinc-300 font-medium text-sm animate-pulse">
+                  Building code graph — extracting functions, classes & call edges...
+                </p>
+              </div>
+            ) : graphError ? (
+              <div className="p-6 bg-rose-500/10 border border-rose-500/20 rounded-xl space-y-4 text-center max-w-md mx-auto">
+                <p className="text-rose-400 text-sm font-medium">{graphError}</p>
+                <button
+                  onClick={fetchGraph}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-medium text-sm rounded-lg transition-colors cursor-pointer"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : graphResults ? (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Code Graph — Function & Class Map</h2>
+                    <p className="text-zinc-400 text-sm">Interactive visualization of function calls and class dependencies</p>
+                  </div>
+                  <button
+                    onClick={fetchGraph}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm rounded-lg transition-colors cursor-pointer"
+                  >
+                    Re-build Graph
+                  </button>
+                </div>
+                <GraphViewer
+                  nodes={graphResults.nodes}
+                  edges={graphResults.edges}
+                  nodeCount={graphResults.node_count}
+                  edgeCount={graphResults.edge_count}
+                />
               </div>
             ) : null}
           </div>
