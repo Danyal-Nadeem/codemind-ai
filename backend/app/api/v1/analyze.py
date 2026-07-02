@@ -70,6 +70,27 @@ async def analyze_repo(
         embeddings = embed_texts(texts)
         indexed_count = index_chunks(repo_id, chunks, embeddings)
 
+        # Build and store Code Graph
+        try:
+            import importlib.util
+            import pathlib
+            _base_graph = pathlib.Path(r"C:\Users\danya\OneDrive\Desktop\PROJECTS\codemind-ai\services\graph-service")
+            
+            # Load graph-service modules
+            _spec_b = importlib.util.spec_from_file_location("builder", _base_graph / "builder.py")
+            _mod_b = importlib.util.module_from_spec(_spec_b)
+            _spec_b.loader.exec_module(_mod_b)
+            
+            _spec_gb = importlib.util.spec_from_file_location("graph_builder", _base_graph / "graph_builder.py")
+            _mod_gb = importlib.util.module_from_spec(_spec_gb)
+            _spec_gb.loader.exec_module(_mod_gb)
+            
+            graph_data = _mod_b.build_graph_data(clone_path)
+            _mod_gb.store_graph(repo_id, graph_data)
+            print(f"[analyze] Successfully stored code graph for {repo_id}")
+        except Exception as ge:
+            print(f"[analyze] Graph extraction failed: {ge}")
+
         repo.status = RepoStatus.ready
         await db.commit()
 
